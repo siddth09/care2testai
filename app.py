@@ -8,7 +8,7 @@ st.title("💊 Care2Test AI — Requirement → TestCase Prototype")
 st.sidebar.header("Backend")
 api_base = st.sidebar.text_input(
     "FastAPI URL",
-    value="https://care2testai-be.onrender.com"
+    value="https://care2testai.onrender.com"
 )
 
 st.markdown(
