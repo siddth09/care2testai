@@ -6,7 +6,7 @@ from typing import List
 
 app = FastAPI()
 
-HF_TOKEN = os.getenv("HF_TOKEN")  # Make sure HF_TOKEN is set in Render Environment
+HF_TOKEN = os.getenv("HF_TOKEN")  # Ensure this is set in Render Environment
 
 # -----------------------------
 # Models
@@ -49,25 +49,28 @@ def generate(req: GenerateRequest):
     test_cases = []
 
     for idx, requirement in enumerate(req.requirements, start=1):
+        description = f"Manual test case for: {requirement.text}"
+        
         # Generate description using HF AI if enabled
         if req.use_ai:
-            hf_url = "https://api-inference.huggingface.co/pipeline/text2text-generation/google/flan-t5-small"
-            response = requests.post(
-                hf_url,
-                headers={"Authorization": f"Bearer {HF_TOKEN}"},
-                json={"inputs": f"Requirement: {requirement.text}\nGenerate one test case."},
-                timeout=30
-            )
-            if response.status_code == 200:
-                try:
-                    result = response.json()[0]["generated_text"]
-                    description = result.split("\n")[0]
-                except Exception:
+            hf_url = "https://api-inference.huggingface.co/models/google/flan-t5-small"
+            try:
+                response = requests.post(
+                    hf_url,
+                    headers={"Authorization": f"Bearer {HF_TOKEN}"},
+                    json={"inputs": f"Requirement: {requirement.text}\nGenerate one test case."},
+                    timeout=30
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                # Hugging Face text2text models return a list of dicts
+                if isinstance(result, list) and "generated_text" in result[0]:
+                    description = result[0]["generated_text"].split("\n")[0]
+                else:
                     description = "AI response parsing error"
-            else:
-                description = f"Failed: {response.text}"
-        else:
-            description = f"Manual test case for: {requirement.text}"
+            except Exception as e:
+                description = f"Failed: {str(e)}"
 
         # Generate simple meaningful steps
         steps = [
