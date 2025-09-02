@@ -8,6 +8,9 @@ app = FastAPI()
 
 HF_TOKEN = os.getenv("HF_TOKEN")  # Make sure HF_TOKEN is set in Render Environment
 
+# -----------------------------
+# Models
+# -----------------------------
 class Requirement(BaseModel):
     id: str
     text: str
@@ -24,6 +27,23 @@ class TestCase(BaseModel):
     expected_result: str
     compliance_tags: List[str] = []
 
+# -----------------------------
+# Root endpoint
+# -----------------------------
+@app.get("/")
+def root():
+    return {"message": "API is live!"}
+
+# -----------------------------
+# Health endpoint
+# -----------------------------
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+# -----------------------------
+# Generate test cases
+# -----------------------------
 @app.post("/generate", response_model=List[TestCase])
 def generate(req: GenerateRequest):
     test_cases = []
