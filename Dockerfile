@@ -16,8 +16,7 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Preload HuggingFace model (optional but avoids cold start on Render)
-RUN python -c "from transformers import pipeline; pipeline('text-generation', model='google/gemma-2b')"
+# 🚨 removed model preload here
 
 # Copy source code
 COPY . .
