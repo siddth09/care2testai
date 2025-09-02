@@ -1,12 +1,21 @@
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 from schemas import Requirement, TestCase
 
 from transformers import pipeline
+from huggingface_hub import login  # 👈 new import
 
 # Initialize FastAPI
 app = FastAPI()
+
+# Log in to Hugging Face Hub (token must be set as ENV var)
+hf_token = os.getenv("HUGGINGFACE_HUB_TOKEN")
+if hf_token:
+    login(token=hf_token)
+else:
+    print("⚠️ HUGGINGFACE_HUB_TOKEN not found. Make sure it's set in your environment.")
 
 # Load HuggingFace model
 generator = pipeline(
@@ -33,7 +42,12 @@ def generate(req: GenerateRequest):
                 f"Include: description, 3-5 test steps, expected result, and compliance tags (like HIPAA, GDPR).\n\n"
             )
 
-            output = generator(prompt, max_new_tokens=200, do_sample=True, temperature=0.7)[0]["generated_text"]
+            output = generator(
+                prompt,
+                max_new_tokens=200,
+                do_sample=True,
+                temperature=0.7
+            )[0]["generated_text"]
 
             # crude parsing
             lines = [line.strip() for line in output.split("\n") if line.strip()]
