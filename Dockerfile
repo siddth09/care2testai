@@ -11,5 +11,5 @@ COPY . .
 
 EXPOSE 8000
 
-# Start FastAPI app
+# Use shell form to allow environment variable expansion
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
