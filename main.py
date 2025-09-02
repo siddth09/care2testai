@@ -1,92 +1,54 @@
 from fastapi import FastAPI
 from typing import List
-from pydantic import BaseModel
 from schemas import Requirement, TestCase
-import os
 
-# Optional: Google Generative AI (Gemini)
-try:
-    import google.generativeai as genai
-    GEMINI_KEY = os.getenv("GEMINI_API_KEY", None)
-    if GEMINI_KEY:
-        genai.configure(api_key=GEMINI_KEY)
-    else:
-        print("⚠️ No GEMINI_API_KEY found, AI mode will fallback to static")
-except ImportError:
-    genai = None
-    GEMINI_KEY = None
-    print("⚠️ google-generativeai not installed, AI mode disabled")
+from transformers import pipeline
 
+# Initialize FastAPI
 app = FastAPI()
 
-class GenerateRequest(BaseModel):
-    requirements: List[Requirement]
-    use_ai: bool = False
+# Load HuggingFace model (Gemma-2B or any small model available)
+# Using a text-generation pipeline
+generator = pipeline(
+    "text-generation",
+    model="google/gemma-2b",
+    device=-1  # -1 = CPU, 0 = GPU
+)
 
 @app.post("/generate")
-def generate(req: GenerateRequest):
+def generate(requirements: List[Requirement]):
     testcases = []
 
-    if req.use_ai and genai and GEMINI_KEY:
-        # --- AI generation ---
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        for i, r in enumerate(req.requirements, start=1):
-            prompt = f"""
-            Convert this healthcare software requirement into a detailed test case:
-            Requirement: "{r.text}"
-            
-            Return JSON with fields:
-            - description
-            - steps (as list)
-            - expected_result
-            - compliance_tags (list)
-            """
-            try:
-                resp = model.generate_content(prompt)
-                tc_json = resp.text.strip()
+    for i, req in enumerate(requirements, start=1):
+        # Create a prompt for the AI
+        prompt = (
+            f"Generate a detailed healthcare test case for the requirement:\n"
+            f"Requirement: {req.text}\n"
+            f"Include: description, 3-5 test steps, expected result, and compliance tags (like HIPAA, GDPR).\n\n"
+        )
 
-                # quick parse to dict (avoid full eval for safety)
-                import json
-                data = json.loads(tc_json)
+        # Generate response
+        output = generator(prompt, max_new_tokens=200, do_sample=True, temperature=0.7)[0]["generated_text"]
 
-                tc = TestCase(
-                    id=f"TC-{i:03}",
-                    requirement_id=r.id,
-                    description=data.get("description", f"Validate: {r.text}"),
-                    steps=data.get("steps", [f"Execute requirement: {r.text}"]),
-                    expected_result=data.get("expected_result", "System behaves correctly"),
-                    compliance_tags=data.get("compliance_tags", ["IEC-62304"])
-                )
-            except Exception as e:
-                print(f"AI failed, falling back. Error: {e}")
-                tc = TestCase(
-                    id=f"TC-{i:03}",
-                    requirement_id=r.id,
-                    description=f"Validate requirement: {r.text}",
-                    steps=[
-                        "1) Prepare test environment",
-                        f"2) Execute requirement: {r.text}",
-                        "3) Validate against compliance"
-                    ],
-                    expected_result="System behaves correctly",
-                    compliance_tags=["IEC-62304", "HIPAA"]
-                )
-            testcases.append(tc)
-    else:
-        # --- Static fallback ---
-        for i, r in enumerate(req.requirements, start=1):
-            tc = TestCase(
-                id=f"TC-{i:03}",
-                requirement_id=r.id,
-                description=f"Validate requirement: {r.text}",
-                steps=[
-                    "1) Prepare test environment with anonymized patient data",
-                    f"2) Execute requirement: {r.text}",
-                    "3) Validate outcome against healthcare compliance standards"
-                ],
-                expected_result="System behaves correctly",
-                compliance_tags=["IEC-62304", "HIPAA", "GDPR"]
-            )
-            testcases.append(tc)
+        # --- simple parsing (fallback if AI response is messy) ---
+        # We'll extract chunks by splitting lines
+        lines = [line.strip() for line in output.split("\n") if line.strip()]
+        description = lines[0] if lines else f"Test case for: {req.text}"
+        steps = [l for l in lines if l.lower().startswith(("-", "step", "1", "2", "3"))]
+        expected = next((l for l in lines if "expected" in l.lower()), "System behaves correctly")
+        tags = [tag for tag in ["HIPAA", "GDPR", "IEC-62304"] if tag in output]
+
+        tc = TestCase(
+            id=f"TC-{i:03}",
+            requirement_id=req.id,
+            description=description,
+            steps=steps or [
+                f"Execute: {req.text}",
+                "Check compliance with healthcare standards"
+            ],
+            expected_result=expected,
+            compliance_tags=tags or ["General-Healthcare"]
+        )
+        testcases.append(tc)
 
     return testcases
