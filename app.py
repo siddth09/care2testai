@@ -62,6 +62,12 @@ if st.button("Generate Test Cases"):
                     file_name="testcases.json"
                 )
             else:
-                st.error(f"Backend error {resp.status_code}: {resp.text}")
-        except Exception as e:
+                st.error(
+                    f"Backend error {resp.status_code}: {resp.text}\n\n"
+                    "Make sure your FastAPI URL and HF_TOKEN are correct, "
+                    "and AI endpoint is reachable."
+                )
+        except requests.exceptions.RequestException as e:
             st.error(f"Failed to contact backend: {e}")
+        except json.decoder.JSONDecodeError:
+            st.error("Backend returned invalid JSON. Check the FastAPI logs for errors.")
