@@ -3,13 +3,16 @@ import requests
 import json
 
 st.set_page_config(page_title="Care2Test AI Demo", layout="wide")
-st.title("💊 Care2Test AI — Requirement → TestCase Prototype")
+st.title("🏥 Care2Test AI — Requirement → TestCase Prototype")
 
+# Sidebar config
 st.sidebar.header("Backend")
 api_base = st.sidebar.text_input(
     "FastAPI URL",
     value="https://care2testai.onrender.com"
 )
+
+ai_enabled = st.sidebar.checkbox("🤖 Use AI", value=True)
 
 st.markdown(
     """Enter one or more **healthcare requirements** (one per line)."""
@@ -30,12 +33,17 @@ if st.button("Generate Test Cases"):
     if not lines:
         st.warning("⚠️ Please enter at least one requirement.")
     else:
-        payload = [{"id": f"REQ-{i+1}", "text": text} for i, text in enumerate(lines)]
+        payload = {
+            "requirements": [{"id": f"REQ-{i+1}", "text": text} for i, text in enumerate(lines)],
+            "use_ai": ai_enabled
+        }
+
         try:
-            resp = requests.post(f"{api_base}/generate", json=payload, timeout=30)
+            resp = requests.post(f"{api_base}/generate", json=payload, timeout=60)
             if resp.status_code == 200:
                 tcs = resp.json()
                 st.success(f"✅ Generated {len(tcs)} test cases")
+
                 for tc in tcs:
                     with st.expander(f"{tc['id']} — for {tc['requirement_id']}"):
                         st.write("**Description:**", tc["description"])
@@ -47,6 +55,7 @@ if st.button("Generate Test Cases"):
                             "**Compliance Tags:**",
                             ", ".join(tc.get("compliance_tags", []))
                         )
+
                 st.download_button(
                     "📥 Download JSON",
                     data=json.dumps(tcs, indent=2),
