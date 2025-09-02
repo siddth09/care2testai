@@ -7,7 +7,7 @@ from typing import List
 app = FastAPI()
 
 HF_TOKEN = os.getenv("HF_TOKEN")  # Make sure HF_TOKEN is set in Render Environment
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/t5-small"  # Public T5 model
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-small"  # Public T5 model
 
 # -----------------------------
 # Models
