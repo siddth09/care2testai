@@ -68,15 +68,6 @@ _Click the image above to watch the demo on YouTube._
 
 ---
 
-## 📌 Roadmap
-
-* [ ] Enhance model accuracy
-* [ ] Add user authentication
-* [ ] Support for more healthcare test formats
-* [ ] Export results in PDF/Excel
-
----
-
 ## 📜 License
 
 MIT License © 2025 [Siddharth](https://github.com/siddth09)
