@@ -1,22 +1,12 @@
-# Use Python 3.11 slim image
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (needed for PyTorch + HuggingFace)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    curl \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
+# Install dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy source code
+# Copy source
 COPY . .
 
 EXPOSE 8000
