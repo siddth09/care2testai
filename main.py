@@ -1,20 +1,13 @@
+import os
+import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-from transformers import pipeline
 
 app = FastAPI()
 
-# ✅ Lightweight model for free tier
-generator = pipeline(
-    "text2text-generation",
-    model="google/flan-t5-small",
-    device=-1
-)
+HF_TOKEN = os.getenv("HF_TOKEN")  # Set in Render Environment
 
-# -----------------------------
-# Request/Response Schemas
-# -----------------------------
 class Requirement(BaseModel):
     id: str
     text: str
@@ -31,40 +24,36 @@ class TestCase(BaseModel):
     expected_result: str
     compliance_tags: List[str] = []
 
-# -----------------------------
-# API Endpoint
-# -----------------------------
 @app.post("/generate", response_model=List[TestCase])
 def generate(req: GenerateRequest):
     test_cases = []
-
     for idx, requirement in enumerate(req.requirements, start=1):
         if req.use_ai:
-            # Prompt engineering for FLAN-T5
-            prompt = (
-                f"Requirement: {requirement.text}\n"
-                "Generate one software test case with description, steps, and expected result."
+            response = requests.post(
+                "https://api-inference.huggingface.co/models/google/flan-t5-small",
+                headers={"Authorization": f"Bearer {HF_TOKEN}"},
+                json={"inputs": f"Requirement: {requirement.text}\nGenerate one test case."},
+                timeout=30
             )
-            result = generator(prompt, max_length=128, num_return_sequences=1)[0]["generated_text"]
-
-            # Simple parsing fallback
-            description = result.split("\n")[0] if result else "Generated test case"
-            steps = [f"Step {i+1}" for i in range(3)]
-            expected_result = "System behaves as expected"
+            if response.status_code == 200:
+                try:
+                    result = response.json()[0]["generated_text"]
+                    description = result.split("\n")[0]
+                except Exception:
+                    description = "AI response parsing error"
+            else:
+                description = f"Failed: {response.text}"
         else:
             description = f"Manual test case for: {requirement.text}"
-            steps = ["Step 1: Review requirement", "Step 2: Execute scenario", "Step 3: Verify outcome"]
-            expected_result = "Requirement satisfied"
 
         test_cases.append(
             TestCase(
                 id=f"TC-{idx}",
                 requirement_id=requirement.id,
                 description=description,
-                steps=steps,
-                expected_result=expected_result,
-                compliance_tags=["HIPAA", "GDPR"]
+                steps=["Step 1", "Step 2", "Step 3"],
+                expected_result="Requirement satisfied",
+                compliance_tags=["HIPAA", "GDPR", "IEC 62304", "FDA"]
             )
         )
-
     return test_cases
