@@ -1,80 +1,70 @@
-import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-from schemas import Requirement, TestCase
-
 from transformers import pipeline
-from huggingface_hub import login  # 👈 new import
 
-# Initialize FastAPI
 app = FastAPI()
 
-# Log in to Hugging Face Hub (token must be set as ENV var)
-hf_token = os.getenv("HUGGINGFACE_HUB_TOKEN")
-if hf_token:
-    login(token=hf_token)
-else:
-    print("⚠️ HUGGINGFACE_HUB_TOKEN not found. Make sure it's set in your environment.")
-
-# Load HuggingFace model
+# ✅ Lightweight model for free tier
 generator = pipeline(
-    "text-generation",
-    model="google/gemma-2b",
-    device=-1  # CPU
+    "text2text-generation",
+    model="google/flan-t5-small",
+    device=-1
 )
 
-# ---- New request model to match app.py ----
+# -----------------------------
+# Request/Response Schemas
+# -----------------------------
+class Requirement(BaseModel):
+    id: str
+    text: str
+
 class GenerateRequest(BaseModel):
     requirements: List[Requirement]
     use_ai: bool = True
 
-@app.post("/generate")
+class TestCase(BaseModel):
+    id: str
+    requirement_id: str
+    description: str
+    steps: List[str]
+    expected_result: str
+    compliance_tags: List[str] = []
+
+# -----------------------------
+# API Endpoint
+# -----------------------------
+@app.post("/generate", response_model=List[TestCase])
 def generate(req: GenerateRequest):
-    testcases = []
+    test_cases = []
 
-    for i, r in enumerate(req.requirements, start=1):
+    for idx, requirement in enumerate(req.requirements, start=1):
         if req.use_ai:
-            # AI prompt
+            # Prompt engineering for FLAN-T5
             prompt = (
-                f"Generate a detailed healthcare test case for the requirement:\n"
-                f"Requirement: {r.text}\n"
-                f"Include: description, 3-5 test steps, expected result, and compliance tags (like HIPAA, GDPR).\n\n"
+                f"Requirement: {requirement.text}\n"
+                "Generate one software test case with description, steps, and expected result."
             )
+            result = generator(prompt, max_length=128, num_return_sequences=1)[0]["generated_text"]
 
-            output = generator(
-                prompt,
-                max_new_tokens=200,
-                do_sample=True,
-                temperature=0.7
-            )[0]["generated_text"]
-
-            # crude parsing
-            lines = [line.strip() for line in output.split("\n") if line.strip()]
-            description = lines[0] if lines else f"Test case for: {r.text}"
-            steps = [l for l in lines if l.lower().startswith(("step", "1", "2", "3", "-"))]
-            expected = next((l for l in lines if "expected" in l.lower()), "System behaves correctly")
-            tags = [tag for tag in ["HIPAA", "GDPR", "IEC-62304"] if tag in output]
-
+            # Simple parsing fallback
+            description = result.split("\n")[0] if result else "Generated test case"
+            steps = [f"Step {i+1}" for i in range(3)]
+            expected_result = "System behaves as expected"
         else:
-            # fallback static logic
-            description = f"Validate requirement: {r.text}"
-            steps = [
-                "1) Prepare test environment with anonymized patient data",
-                f"2) Execute requirement: {r.text}",
-                "3) Validate outcome against healthcare compliance standards"
-            ]
-            expected = "System behaves correctly"
-            tags = ["IEC-62304", "HIPAA", "GDPR"]
+            description = f"Manual test case for: {requirement.text}"
+            steps = ["Step 1: Review requirement", "Step 2: Execute scenario", "Step 3: Verify outcome"]
+            expected_result = "Requirement satisfied"
 
-        tc = TestCase(
-            id=f"TC-{i:03}",
-            requirement_id=r.id,
-            description=description,
-            steps=steps,
-            expected_result=expected,
-            compliance_tags=tags
+        test_cases.append(
+            TestCase(
+                id=f"TC-{idx}",
+                requirement_id=requirement.id,
+                description=description,
+                steps=steps,
+                expected_result=expected_result,
+                compliance_tags=["HIPAA", "GDPR"]
+            )
         )
-        testcases.append(tc)
 
-    return testcases
+    return test_cases
