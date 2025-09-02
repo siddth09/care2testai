@@ -6,7 +6,8 @@ from typing import List
 
 app = FastAPI()
 
-HF_TOKEN = os.getenv("HF_TOKEN")  # Ensure this is set in Render Environment
+HF_TOKEN = os.getenv("HF_TOKEN")  # Make sure HF_TOKEN is set in Render Environment
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/t5-small"  # Public T5 model
 
 # -----------------------------
 # Models
@@ -48,29 +49,25 @@ def health():
 def generate(req: GenerateRequest):
     test_cases = []
 
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+
     for idx, requirement in enumerate(req.requirements, start=1):
-        description = f"Manual test case for: {requirement.text}"
-        
         # Generate description using HF AI if enabled
         if req.use_ai:
-            hf_url = "https://api-inference.huggingface.co/models/google/flan-t5-small"
+            payload = {"inputs": f"Requirement: {requirement.text}\nGenerate one test case."}
             try:
-                response = requests.post(
-                    hf_url,
-                    headers={"Authorization": f"Bearer {HF_TOKEN}"},
-                    json={"inputs": f"Requirement: {requirement.text}\nGenerate one test case."},
-                    timeout=30
-                )
-                response.raise_for_status()
-                result = response.json()
-                
-                # Hugging Face text2text models return a list of dicts
-                if isinstance(result, list) and "generated_text" in result[0]:
-                    description = result[0]["generated_text"].split("\n")[0]
+                response = requests.post(HF_MODEL_URL, headers=headers, json=payload, timeout=30)
+                response.raise_for_status()  # Raise exception for HTTP errors
+
+                result_json = response.json()
+                if isinstance(result_json, list) and "generated_text" in result_json[0]:
+                    description = result_json[0]["generated_text"].split("\n")[0]
                 else:
                     description = "AI response parsing error"
-            except Exception as e:
+            except requests.exceptions.RequestException as e:
                 description = f"Failed: {str(e)}"
+        else:
+            description = f"Manual test case for: {requirement.text}"
 
         # Generate simple meaningful steps
         steps = [
