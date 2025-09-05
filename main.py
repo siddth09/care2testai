@@ -6,9 +6,11 @@ from typing import List
 
 app = FastAPI()
 
-HF_TOKEN = os.getenv("HF_TOKEN")  # Set in Render Environment
-HF_MODEL_URL = "https://api.friendli.ai/dedicated"
-# https://api-inference.huggingface.co/models/mistralai/Mistral-8x7B-Instruct-v0.1"
+# -----------------------------
+# Config
+# -----------------------------
+FRIENDLI_TOKEN = os.getenv("FRIENDLI_TOKEN")  # Set this in Render Environment
+FRIENDLI_URL = "https://api.friendli.ai/dedicated/deph4wl8wycxqqj"  # Your endpoint ID is embedded
 
 # -----------------------------
 # Models
@@ -51,35 +53,44 @@ def generate(req: GenerateRequest):
     test_cases = []
 
     headers = {
-        "Authorization": f"Bearer {HF_TOKEN}",
+        "Authorization": f"Bearer {FRIENDLI_TOKEN}",
         "Content-Type": "application/json"
     }
 
     for idx, requirement in enumerate(req.requirements, start=1):
+        # Generate description using Friendli AI if enabled
         if req.use_ai:
-            prompt = (
-                f"You are a healthcare software test engineer. "
-                f"Write ONE concise test case for this requirement:\n\n"
-                f"{requirement.text}"
-            )
-            payload = {"inputs": prompt}
+            payload = {
+                "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an AI that generates test cases for software requirements."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Requirement: {requirement.text}\nGenerate one test case."
+                    }
+                ],
+                "max_tokens": 200
+            }
+
             try:
-                response = requests.post(HF_MODEL_URL, headers=headers, json=payload, timeout=60)
+                response = requests.post(FRIENDLI_URL, headers=headers, json=payload, timeout=30)
                 response.raise_for_status()
                 result_json = response.json()
 
-                # Handle both list & dict responses
-                if isinstance(result_json, list) and "generated_text" in result_json[0]:
-                    description = result_json[0]["generated_text"].strip()
-                elif isinstance(result_json, dict) and "generated_text" in result_json:
-                    description = result_json["generated_text"].strip()
+                # Friendli’s API is OpenAI-compatible → response structure similar to OpenAI
+                if "choices" in result_json and len(result_json["choices"]) > 0:
+                    description = result_json["choices"][0]["message"]["content"].strip()
                 else:
-                    description = f"Unexpected HF response: {result_json}"
+                    description = "AI response parsing error"
             except requests.exceptions.RequestException as e:
                 description = f"Failed: {str(e)}"
         else:
             description = f"Manual test case for: {requirement.text}"
 
+        # Generate simple meaningful steps
         steps = [
             f"Verify that: {requirement.text}",
             "Check system behavior according to requirement",
