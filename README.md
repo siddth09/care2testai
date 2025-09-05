@@ -19,7 +19,7 @@ It converts plain-text requirements into **structured test cases** with AI assis
 
 ## 🎥 Demo Video  
 
-[![Care2TestAI Demo](https://img.youtube.com/vi/gSKWZw28__Y/0.jpg)](https://youtu.be/gSKWZw28__Y)  
+[![Care2TestAI Demo](https://img.youtube.com/vi/tMvYtWCRdS0/0.jpg)](https://www.youtube.com/watch?v=tMvYtWCRdS0)  
 
 _Click the image above to watch the demo on YouTube._  
 
@@ -41,7 +41,7 @@ _Click the image above to watch the demo on YouTube._
    ```bash
    git clone https://github.com/siddth09/care2testai.git
    cd care2testai
-``
+
 
 2. **Create a virtual environment & install dependencies**
 
