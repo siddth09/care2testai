@@ -6,11 +6,9 @@ from typing import List
 
 app = FastAPI()
 
-# -----------------------------
-# Config
-# -----------------------------
-FRIENDLI_TOKEN = os.getenv("FRIENDLI_TOKEN")  # Set this in Render Environment
-FRIENDLI_URL = "https://api.friendli.ai/dedicated/deph4wl8wycxqqj"  # Your endpoint ID is embedded
+# 🔑 Friendli API key must be set in Render as FRIENDLI_TOKEN
+FRIENDLI_TOKEN = os.getenv("FRIENDLI_TOKEN")
+FRIENDLI_URL = "https://api.friendli.ai/dedicated/deph4wl8wycxqqj/v1/chat/completions"
 
 # -----------------------------
 # Models
@@ -63,24 +61,16 @@ def generate(req: GenerateRequest):
             payload = {
                 "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an AI that generates test cases for software requirements."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Requirement: {requirement.text}\nGenerate one test case."
-                    }
+                    {"role": "system", "content": "You are an AI that generates structured test cases for software requirements."},
+                    {"role": "user", "content": f"Requirement: {requirement.text}\nGenerate one concise test case description."}
                 ],
                 "max_tokens": 200
             }
-
             try:
                 response = requests.post(FRIENDLI_URL, headers=headers, json=payload, timeout=30)
                 response.raise_for_status()
-                result_json = response.json()
 
-                # Friendli’s API is OpenAI-compatible → response structure similar to OpenAI
+                result_json = response.json()
                 if "choices" in result_json and len(result_json["choices"]) > 0:
                     description = result_json["choices"][0]["message"]["content"].strip()
                 else:
@@ -90,7 +80,7 @@ def generate(req: GenerateRequest):
         else:
             description = f"Manual test case for: {requirement.text}"
 
-        # Generate simple meaningful steps
+        # Generate meaningful steps
         steps = [
             f"Verify that: {requirement.text}",
             "Check system behavior according to requirement",
