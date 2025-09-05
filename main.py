@@ -6,8 +6,8 @@ from typing import List
 
 app = FastAPI()
 
-HF_TOKEN = os.getenv("HF_TOKEN")  # Make sure HF_TOKEN is set in Render Environment
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-small"  # Public T5 model
+HF_TOKEN = os.getenv("HF_TOKEN")  # Set in Render Environment
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-8x7B-Instruct-v0.1"
 
 # -----------------------------
 # Models
@@ -49,27 +49,36 @@ def health():
 def generate(req: GenerateRequest):
     test_cases = []
 
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
     for idx, requirement in enumerate(req.requirements, start=1):
-        # Generate description using HF AI if enabled
         if req.use_ai:
-            payload = {"inputs": f"Requirement: {requirement.text}\nGenerate one test case."}
+            prompt = (
+                f"You are a healthcare software test engineer. "
+                f"Write ONE concise test case for this requirement:\n\n"
+                f"{requirement.text}"
+            )
+            payload = {"inputs": prompt}
             try:
-                response = requests.post(HF_MODEL_URL, headers=headers, json=payload, timeout=30)
-                response.raise_for_status()  # Raise exception for HTTP errors
-
+                response = requests.post(HF_MODEL_URL, headers=headers, json=payload, timeout=60)
+                response.raise_for_status()
                 result_json = response.json()
+
+                # Handle both list & dict responses
                 if isinstance(result_json, list) and "generated_text" in result_json[0]:
-                    description = result_json[0]["generated_text"].split("\n")[0]
+                    description = result_json[0]["generated_text"].strip()
+                elif isinstance(result_json, dict) and "generated_text" in result_json:
+                    description = result_json["generated_text"].strip()
                 else:
-                    description = "AI response parsing error"
+                    description = f"Unexpected HF response: {result_json}"
             except requests.exceptions.RequestException as e:
                 description = f"Failed: {str(e)}"
         else:
             description = f"Manual test case for: {requirement.text}"
 
-        # Generate simple meaningful steps
         steps = [
             f"Verify that: {requirement.text}",
             "Check system behavior according to requirement",
