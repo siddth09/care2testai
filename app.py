@@ -2,10 +2,28 @@ import streamlit as st
 import requests
 import json
 
+# -----------------------------
+# Page Config
+# -----------------------------
 st.set_page_config(page_title="Care2Test AI Demo", layout="wide")
+
+# -----------------------------
+# Logo + Title
+# -----------------------------
+st.markdown(
+    """
+    <p align="center">
+        <img src="assets/logo.png" alt="Care2TestAI Logo" width="150"/>
+    </p>
+    """,
+    unsafe_allow_html=True
+)
+
 st.title("🏥 Care2Test AI — Requirement → TestCase Prototype")
 
-# Sidebar config
+# -----------------------------
+# Sidebar Config
+# -----------------------------
 st.sidebar.header("Backend")
 api_base = st.sidebar.text_input(
     "FastAPI URL",
@@ -18,6 +36,9 @@ st.markdown(
     """Enter one or more **healthcare requirements** (one per line)."""
 )
 
+# -----------------------------
+# Input Area
+# -----------------------------
 req_text = st.text_area(
     "Requirements",
     height=200,
@@ -28,6 +49,9 @@ req_text = st.text_area(
     )
 )
 
+# -----------------------------
+# Generate Button
+# -----------------------------
 if st.button("Generate Test Cases"):
     lines = [l.strip() for l in req_text.splitlines() if l.strip()]
     if not lines:
@@ -56,6 +80,9 @@ if st.button("Generate Test Cases"):
                             ", ".join(tc.get("compliance_tags", []))
                         )
 
+                # -----------------------------
+                # Download Button
+                # -----------------------------
                 st.download_button(
                     "📥 Download JSON",
                     data=json.dumps(tcs, indent=2),
