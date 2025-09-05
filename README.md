@@ -1,5 +1,9 @@
 # 🏥 Care2TestAI  
 
+<p align="center">
+  <img src="logo.png" alt="Care2TestAI Logo" width="200"/>
+</p>
+
 Care2TestAI is an **AI-powered test case generator** for healthcare software requirements.  
 It converts plain-text requirements into **structured test cases** with AI assistance, ensuring compliance with standards like **HIPAA, GDPR, IEC 62304, and FDA**.  
 
@@ -37,7 +41,7 @@ _Click the image above to watch the demo on YouTube._
    ```bash
    git clone https://github.com/siddth09/care2testai.git
    cd care2testai
-
+``
 
 2. **Create a virtual environment & install dependencies**
 
@@ -95,4 +99,3 @@ flowchart TD
 ## 📜 License
 
 MIT License © 2025 [Siddharth](https://github.com/siddth09)
-
