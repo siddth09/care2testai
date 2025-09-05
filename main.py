@@ -7,7 +7,8 @@ from typing import List
 app = FastAPI()
 
 HF_TOKEN = os.getenv("HF_TOKEN")  # Set in Render Environment
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-8x7B-Instruct-v0.1"
+HF_MODEL_URL = "https://api.friendli.ai/dedicated"
+# https://api-inference.huggingface.co/models/mistralai/Mistral-8x7B-Instruct-v0.1"
 
 # -----------------------------
 # Models
