@@ -1,8 +1,8 @@
-# 🏥 Care2TestAI  
-
 <p align="center">
-  <img src="logo.png" alt="Care2TestAI Logo" width="200"/>
+  <img src="assets/logo.png" alt="Care2TestAI Logo" width="200"/>
 </p>
+
+# 🏥 Care2TestAI  
 
 Care2TestAI is an **AI-powered test case generator** for healthcare software requirements.  
 It converts plain-text requirements into **structured test cases** with AI assistance, ensuring compliance with standards like **HIPAA, GDPR, IEC 62304, and FDA**.  
