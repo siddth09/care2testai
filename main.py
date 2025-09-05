@@ -1,14 +1,16 @@
 import os
-import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
+from openai import OpenAI
 
 app = FastAPI()
 
-# 🔑 Friendli API key must be set in Render as FRIENDLI_TOKEN
-FRIENDLI_TOKEN = os.getenv("FRIENDLI_TOKEN")
-FRIENDLI_URL = "https://api.friendli.ai/dedicated/deph4wl8wycxqqj/v1/chat/completions"
+# 🔑 Friendli API client (OpenAI compatible)
+client = OpenAI(
+    api_key=os.getenv("FRIENDLI_TOKEN"),
+    base_url="https://api.friendli.ai/dedicated/v1",  # ✅ generic base for dedicated endpoints
+)
 
 # -----------------------------
 # Models
@@ -50,32 +52,26 @@ def health():
 def generate(req: GenerateRequest):
     test_cases = []
 
-    headers = {
-        "Authorization": f"Bearer {FRIENDLI_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
     for idx, requirement in enumerate(req.requirements, start=1):
         # Generate description using Friendli AI if enabled
         if req.use_ai:
-            payload = {
-                "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-                "messages": [
-                    {"role": "system", "content": "You are an AI that generates structured test cases for software requirements."},
-                    {"role": "user", "content": f"Requirement: {requirement.text}\nGenerate one concise test case description."}
-                ],
-                "max_tokens": 200
-            }
             try:
-                response = requests.post(FRIENDLI_URL, headers=headers, json=payload, timeout=30)
-                response.raise_for_status()
-
-                result_json = response.json()
-                if "choices" in result_json and len(result_json["choices"]) > 0:
-                    description = result_json["choices"][0]["message"]["content"].strip()
-                else:
-                    description = "AI response parsing error"
-            except requests.exceptions.RequestException as e:
+                chat_completion = client.chat.completions.create(
+                    model="deph4wl8wycxqqj",  # ✅ use your endpoint ID here
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an AI that generates structured, concise test cases for healthcare software requirements.",
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Requirement: {requirement.text}\nGenerate one concise test case description.",
+                        },
+                    ],
+                    max_tokens=200,
+                )
+                description = chat_completion.choices[0].message.content.strip()
+            except Exception as e:
                 description = f"Failed: {str(e)}"
         else:
             description = f"Manual test case for: {requirement.text}"
@@ -84,7 +80,7 @@ def generate(req: GenerateRequest):
         steps = [
             f"Verify that: {requirement.text}",
             "Check system behavior according to requirement",
-            "Validate expected outcome against healthcare compliance standards"
+            "Validate expected outcome against healthcare compliance standards",
         ]
 
         test_cases.append(
@@ -94,7 +90,7 @@ def generate(req: GenerateRequest):
                 description=description,
                 steps=steps,
                 expected_result="Requirement satisfied",
-                compliance_tags=["HIPAA", "GDPR", "IEC 62304", "FDA"]
+                compliance_tags=["HIPAA", "GDPR", "IEC 62304", "FDA"],
             )
         )
 
